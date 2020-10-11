@@ -1,4 +1,5 @@
 import { useActionCableContext } from "contexts/ActionCable";
+import ActionCable from "actioncable";
 import { useEffect, useState } from "react";
 
 type Props<ChannelDataSchema> = {
@@ -7,26 +8,32 @@ type Props<ChannelDataSchema> = {
   // event handler for recieving channel data
   received: (data: ChannelDataSchema) => void;
   // Send data across the channel
-  send?: (data: ChannelDataSchema) => boolean;
+
   onConnected?: () => void;
   debug: boolean;
 };
 
-type SubscriptionResponse = {
-  connected: boolean;
-  ensureActiveConnection: () => void;
-};
+type SubscriptionResponse<ChannelDataSchema> =
+  | {
+      subscription: ActionCable.Channel;
+      send: (data: ChannelDataSchema) => boolean;
+      ensureActiveConnection: () => void;
+    }
+  | {
+      subscription: null;
+    };
 
 // Socket data = the data you expect in return from the channel
 export const useSubscription = <ChannelDataSchema>({
   channel,
   params,
   received,
-  send,
   onConnected,
   debug,
 }: Props<ChannelDataSchema>): SubscriptionResponse => {
-  const [connected, setConnected] = useState(false);
+  const [subscription, setSubscription] = useState<ActionCable.Channel | null>(
+    null
+  );
 
   const { consumer } = useActionCableContext();
 
@@ -38,24 +45,23 @@ export const useSubscription = <ChannelDataSchema>({
       }
     );
     if (debug) console.info("Subscribed to", channel);
-    if (send) subscription.send = send;
     if (onConnected) onConnected();
 
-    setConnected(true);
+    setSubscription(subscription);
 
     return () => {
       if (debug) console.info("Unsubscribing from", channel);
       subscription.unsubscribe();
     };
-  }, [
-    channel,
-    consumer.subscriptions,
-    debug,
-    onConnected,
-    params,
-    received,
-    send,
-  ]);
+  }, [channel, consumer.subscriptions, debug, onConnected, params, received]);
 
-  return { connected, ensureActiveConnection: consumer.ensureActiveConnection };
+  return subscription === null
+    ? {
+        subscription: null,
+      }
+    : {
+        subscription,
+        ensureActiveConnection: consumer.ensureActiveConnection,
+        send: subscription.send,
+      };
 };
