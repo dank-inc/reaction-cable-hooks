@@ -2,7 +2,7 @@ import { useActionCableContext } from "contexts/ActionCable";
 import ActionCable from "actioncable";
 import { useEffect, useState } from "react";
 
-type Props<ChannelDataSchema> = {
+export type UseSubscriptionProps<ChannelDataSchema> = {
   channel: string;
   params: Record<string, string>;
   // event handler for recieving channel data
